@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Real or Fake? — City Name Quiz</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0e12;
+    --surface: #16161c;
+    --surface2: #1e1e26;
+    --border: rgba(255,255,255,0.07);
+    --text: #f0eff5;
+    --muted: #6b6a7a;
+    --accent: #7c6aff;
+    --green: #22c55e;
+    --green-bg: rgba(34,197,94,0.12);
+    --red: #ef4444;
+    --red-bg: rgba(239,68,68,0.12);
+    --tile-bg: #1a1a24;
+    --tile-hover: #22222e;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    padding: 2rem 1rem 4rem;
+  }
+
+  .noise {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0; opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .container { max-width: 860px; margin: 0 auto; position: relative; z-index: 1; }
+
+  header { text-align: center; margin-bottom: 3rem; }
+
+  .eyebrow {
+    font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 0.5rem;
+  }
+
+  h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(3rem, 10vw, 6rem);
+    line-height: 0.9;
+    color: var(--text);
+    letter-spacing: 1px;
+  }
+
+  h1 span { color: var(--accent); }
+
+  .subtitle {
+    margin-top: 1rem; font-size: 14px; color: var(--muted);
+    max-width: 360px; margin-inline: auto; line-height: 1.6;
+  }
+
+  .scoreboard {
+    display: flex; gap: 1rem; justify-content: center;
+    margin-bottom: 2rem; flex-wrap: wrap;
+  }
+
+  .score-pill {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 100px; padding: 8px 20px;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; color: var(--muted);
+    transition: all 0.3s;
+  }
+
+  .score-pill .val {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px; color: var(--text); letter-spacing: 1px;
+  }
+
+  .score-pill.team-active {
+    border-color: var(--accent);
+    background: rgba(124,106,255,0.08);
+  }
+
+  .team-section {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+  }
+
+  .team-label { font-size: 12px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+
+  .team-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  .team-btn {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 5px 14px; font-size: 13px;
+    cursor: pointer; color: var(--muted); font-family: 'DM Sans', sans-serif;
+    transition: all 0.2s;
+  }
+
+  .team-btn:hover { border-color: var(--accent); color: var(--text); }
+  .team-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .active-label {
+    margin-left: auto; font-size: 13px; color: var(--muted);
+  }
+
+  .active-label strong { color: var(--text); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 10px;
+    margin-bottom: 2rem;
+  }
+
+  .tile {
+    background: var(--tile-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 14px;
+    min-height: 80px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.15s, background 0.2s, border-color 0.2s;
+    text-align: center;
+  }
+
+  .tile::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at 50% 0%, rgba(124,106,255,0.12), transparent 70%);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .tile:not(.answered):hover {
+    transform: translateY(-2px);
+    background: var(--tile-hover);
+    border-color: rgba(124,106,255,0.3);
+  }
+
+  .tile:not(.answered):hover::before { opacity: 1; }
+
+  .tile-inner { position: relative; z-index: 1; }
+
+  .tile-num {
+    font-size: 10px; letter-spacing: 1px; color: var(--muted);
+    margin-bottom: 4px; text-transform: uppercase;
+  }
+
+  .tile-name {
+    font-size: 15px; font-weight: 600; color: var(--text);
+    line-height: 1.3;
+  }
+
+  .tile.answered { cursor: default; }
+
+  .tile.revealed-real {
+    background: var(--green-bg);
+    border-color: var(--green);
+  }
+
+  .tile.revealed-fake {
+    background: var(--red-bg);
+    border-color: var(--red);
+  }
+
+  .tile.revealed-real .tile-name { color: var(--green); }
+  .tile.revealed-fake .tile-name { color: var(--red); }
+
+  .tile-badge {
+    font-size: 10px; font-weight: 600; letter-spacing: 1px;
+    text-transform: uppercase; margin-top: 6px;
+    display: none;
+  }
+
+  .tile.revealed-real .tile-badge { display: block; color: var(--green); }
+  .tile.revealed-fake .tile-badge { display: block; color: var(--red); }
+
+  .tile-icon {
+    font-size: 18px; margin-bottom: 2px; display: none;
+  }
+
+  .tile.revealed-real .tile-icon,
+  .tile.revealed-fake .tile-icon { display: block; }
+
+  /* Modal */
+  .overlay {
+    display: none;
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(6px);
+    align-items: center; justify-content: center;
+    padding: 1rem;
+  }
+
+  .overlay.active { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px;
+    padding: 2rem;
+    width: 100%;
+    max-width: 380px;
+    text-align: center;
+    animation: popIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+
+  @keyframes popIn {
+    from { opacity: 0; transform: scale(0.88); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .modal-question {
+    font-size: 13px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 1rem;
+  }
+
+  .modal-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.4rem; color: var(--text);
+    line-height: 1.1; margin-bottom: 0.5rem;
+    letter-spacing: 1px;
+  }
+
+  .modal-team {
+    font-size: 12px; color: var(--muted); margin-bottom: 1.5rem;
+  }
+
+  .modal-team strong { color: var(--accent); }
+
+  .modal-choices {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 10px; margin-bottom: 1rem;
+  }
+
+  .choice-btn {
+    padding: 14px; border-radius: 12px;
+    border: 1px solid var(--border);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px; font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex; flex-direction: column;
+    align-items: center; gap: 4px;
+  }
+
+  .choice-btn .icon { font-size: 22px; }
+
+  .choice-btn.real-btn {
+    background: var(--green-bg); color: var(--green);
+    border-color: rgba(34,197,94,0.3);
+  }
+
+  .choice-btn.real-btn:hover {
+    background: rgba(34,197,94,0.2); transform: scale(1.03);
+  }
+
+  .choice-btn.fake-btn {
+    background: var(--red-bg); color: var(--red);
+    border-color: rgba(239,68,68,0.3);
+  }
+
+  .choice-btn.fake-btn:hover {
+    background: rgba(239,68,68,0.2); transform: scale(1.03);
+  }
+
+  .skip-btn {
+    background: none; border: none; color: var(--muted);
+    font-size: 12px; cursor: pointer; padding: 4px 8px;
+    font-family: 'DM Sans', sans-serif;
+    text-decoration: underline;
+  }
+
+  .skip-btn:hover { color: var(--text); }
+
+  /* Result flash */
+  .result-overlay {
+    display: none;
+    position: fixed; inset: 0; z-index: 200;
+    align-items: center; justify-content: center;
+    pointer-events: none;
+  }
+
+  .result-overlay.show { display: flex; animation: flashOut 0.8s forwards; }
+
+  @keyframes flashOut {
+    0% { opacity: 0; } 20% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; }
+  }
+
+  .result-bubble {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 5rem; letter-spacing: 2px;
+    text-shadow: 0 0 40px currentColor;
+  }
+
+  .result-bubble.correct { color: var(--green); }
+  .result-bubble.wrong { color: var(--red); }
+
+  /* Bottom controls */
+  .controls {
+    display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;
+  }
+
+  .ctrl-btn {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 24px;
+    font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500;
+    cursor: pointer; color: var(--text); transition: all 0.15s;
+  }
+
+  .ctrl-btn:hover { border-color: var(--accent); background: rgba(124,106,255,0.1); }
+  .ctrl-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .ctrl-btn.primary:hover { background: #9580ff; }
+
+  .legend {
+    display: flex; gap: 1.5rem; justify-content: center;
+    margin-bottom: 1.5rem; font-size: 12px; flex-wrap: wrap;
+  }
+
+  .legend-item { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  .progress-bar {
+    height: 3px; background: var(--surface2);
+    border-radius: 2px; margin-bottom: 1.5rem; overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%; background: var(--accent);
+    border-radius: 2px; transition: width 0.4s;
+  }
+
+  .final-banner {
+    display: none;
+    background: linear-gradient(135deg, rgba(124,106,255,0.15), rgba(34,197,94,0.1));
+    border: 1px solid rgba(124,106,255,0.3);
+    border-radius: 16px; padding: 2rem; text-align: center;
+    margin-bottom: 2rem;
+  }
+
+  .final-banner.show { display: block; animation: popIn 0.3s ease; }
+  .final-banner h2 { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; margin-bottom: 0.5rem; }
+  .final-banner p { color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="noise"></div>
+
+<div class="container">
+  <header>
+    <p class="eyebrow">Bengaluru Edition</p>
+    <h1>REAL OR <span>FAKE?</span></h1>
+    <p class="subtitle">Is it a real place near Bengaluru — or did we make it up? Vote as a team!</p>
+  </header>
+
+  <div class="scoreboard" id="scoreboard"></div>
+
+  <div class="team-section">
+    <span class="team-label">Teams</span>
+    <div class="team-btns" id="team-btns"></div>
+    <span class="active-label">Scoring: <strong id="active-name">Team A</strong></span>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div> Real place</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div> Fake name</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--muted)"></div> Not revealed yet</div>
+  </div>
+
+  <div class="progress-bar"><div class="progress-fill" id="progress" style="width:0%"></div></div>
+
+  <div class="final-banner" id="final-banner">
+    <h2>🎉 Round Complete!</h2>
+    <p id="final-scores"></p>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="controls">
+    <button class="ctrl-btn" onclick="resetScores()">Reset scores</button>
+    <button class="ctrl-btn primary" onclick="shuffleAndReset()">Shuffle &amp; play again</button>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <p class="modal-question">Is this a real place?</p>
+    <div class="modal-name" id="modal-name"></div>
+    <div class="modal-team">Scoring for: <strong id="modal-team-name"></strong></div>
+    <div class="modal-choices">
+      <button class="choice-btn real-btn" onclick="answer(true)">
+        <span class="icon">📍</span> Real place
+      </button>
+      <button class="choice-btn fake-btn" onclick="answer(false)">
+        <span class="icon">🚫</span> Made up
+      </button>
+    </div>
+    <button class="skip-btn" onclick="closeModal()">skip this tile</button>
+  </div>
+</div>
+
+<!-- Result flash -->
+<div class="result-overlay" id="result-overlay">
+  <div class="result-bubble" id="result-bubble"></div>
+</div>
+
+<script>
+const CITIES = [
+  { name: "Belthangadi", real: true },
+  { name: "Kutta", real: true },
+  { name: "Googal", real: true },
+  { name: "Cock Burn Road", real: true },
+  { name: "Doddaanekundi", real: true },
+  { name: "Choodasandra", real: true },
+  { name: "Mullur", real: true },
+  { name: "Yeinus Street", real: false },
+  { name: "Badnecaaipalya", real: false },
+  { name: "Rawdrigopuram", real: false },
+  { name: "Mullarpet", real: false },
+  { name: "Beega Akganghalli", real: false },
+  { name: "Pounds Town", real: false },
+  { name: "Assayya Road", real: false },
+  { name: "KKK Nagar", real: false },
+  { name: "Ammukusandra", real: false },
+  { name: "Billegowda Road", real: false },
+  { name: "Caanonkunte", real: false },
+  { name: "Seisietsandra", real: false },
+  { name: "Haarambhalli", real: false },
+];
+
+let teams = ["Team A", "Team B"];
+let scores = {};
+let activeTeam = "Team A";
+let tiles = [];
+let tileState = {};
+let currentTileIdx = null;
+
+function shuffle(arr) {
+  let a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    let j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function init() {
+  teams.forEach(t => { if (scores[t] === undefined) scores[t] = 0; });
+  tiles = shuffle(CITIES);
+  tileState = {};
+  renderAll();
+}
+
+function shuffleAndReset() {
+  tiles = shuffle(CITIES);
+  tileState = {};
+  document.getElementById('final-banner').classList.remove('show');
+  renderGrid();
+  updateProgress();
+}
+
+function resetScores() {
+  teams.forEach(t => scores[t] = 0);
+  renderScoreboard();
+}
+
+function renderAll() {
+  renderScoreboard();
+  renderTeams();
+  renderGrid();
+  updateProgress();
+}
+
+function renderScoreboard() {
+  const sb = document.getElementById('scoreboard');
+  sb.innerHTML = teams.map(t => `
+    <div class="score-pill ${t === activeTeam ? 'team-active' : ''}">
+      <span>${t}</span>
+      <span class="val">${scores[t] || 0}</span>
+      <span style="font-size:11px;color:var(--muted)">pts</span>
+    </div>
+  `).join('');
+}
+
+function renderTeams() {
+  const tb = document.getElementById('team-btns');
+  tb.innerHTML = teams.map(t => `
+    <button class="team-btn ${t === activeTeam ? 'active' : ''}" onclick="setActiveTeam('${t}')">${t}</button>
+  `).join('');
+  document.getElementById('active-name').textContent = activeTeam;
+}
+
+function setActiveTeam(t) {
+  activeTeam = t;
+  renderScoreboard();
+  renderTeams();
+}
+
+function renderGrid() {
+  const grid = document.getElementById('grid');
+  grid.innerHTML = tiles.map((city, i) => {
+    const state = tileState[i];
+    let cls = 'tile';
+    let badge = '';
+    let icon = '';
+    if (state === 'real') { cls += ' answered revealed-real'; badge = 'Real place'; icon = '📍'; }
+    else if (state === 'fake') { cls += ' answered revealed-fake'; badge = 'Made up'; icon = '🚫'; }
+    return `
+      <div class="${cls}" onclick="clickTile(${i})">
+        <div class="tile-inner">
+          <div class="tile-icon">${icon}</div>
+          <div class="tile-name">${city.name}</div>
+          <div class="tile-badge">${badge}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function clickTile(i) {
+  if (tileState[i]) return;
+  currentTileIdx = i;
+  document.getElementById('modal-name').textContent = tiles[i].name;
+  document.getElementById('modal-team-name').textContent = activeTeam;
+  document.getElementById('overlay').classList.add('active');
+}
+
+function answer(guessedReal) {
+  if (currentTileIdx === null) return;
+  const city = tiles[currentTileIdx];
+  const correct = (guessedReal === city.real);
+  tileState[currentTileIdx] = city.real ? 'real' : 'fake';
+  if (correct) {
+    scores[activeTeam] = (scores[activeTeam] || 0) + 100;
+  }
+  closeModal();
+  renderGrid();
+  renderScoreboard();
+  updateProgress();
+  flashResult(correct);
+  checkComplete();
+  currentTileIdx = null;
+}
+
+function closeModal() {
+  document.getElementById('overlay').classList.remove('active');
+}
+
+function flashResult(correct) {
+  const ro = document.getElementById('result-overlay');
+  const rb = document.getElementById('result-bubble');
+  rb.textContent = correct ? 'CORRECT!' : 'WRONG!';
+  rb.className = 'result-bubble ' + (correct ? 'correct' : 'wrong');
+  ro.classList.remove('show');
+  void ro.offsetWidth;
+  ro.classList.add('show');
+  setTimeout(() => ro.classList.remove('show'), 900);
+}
+
+function updateProgress() {
+  const done = Object.keys(tileState).length;
+  const pct = Math.round((done / tiles.length) * 100);
+  document.getElementById('progress').style.width = pct + '%';
+}
+
+function checkComplete() {
+  const done = Object.keys(tileState).length;
+  if (done === tiles.length) {
+    const banner = document.getElementById('final-banner');
+    const summary = teams.map(t => `${t}: ${scores[t] || 0} pts`).join(' · ');
+    document.getElementById('final-scores').textContent = summary;
+    banner.classList.add('show');
+  }
+}
+
+document.getElementById('overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+init();
+</script>
+</body>
+</html>
